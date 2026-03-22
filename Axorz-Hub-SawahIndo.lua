@@ -2206,6 +2206,164 @@ SaveManager:BuildConfigSection(Tabs.Settings)
 SaveManager:LoadAutoloadConfig()
 Window:SelectTab(1)
 
+-- ══════════════════════════════════════════════════════════
+--  FLOATING MINIMIZE BUTTON
+--  Muncul saat GUI di-minimize, tap untuk maximize kembali
+--  Bisa di-drag ke posisi manapun
+-- ══════════════════════════════════════════════════════════
+local GuiService    = game:GetService("GuiService")
+local UIS           = game:GetService("UserInputService")
+local RunService    = game:GetService("RunService")
+
+local floatGui = Instance.new("ScreenGui")
+floatGui.Name            = "AxorzFloatButton"
+floatGui.ResetOnSpawn    = false
+floatGui.DisplayOrder    = 999
+floatGui.IgnoreGuiInset  = true
+floatGui.ZIndexBehavior  = Enum.ZIndexBehavior.Sibling
+floatGui.Parent          = LocalPlayer:WaitForChild("PlayerGui")
+
+-- Ukuran tombol — lebih besar di HP
+local btnSize = (sw < 800) and 64 or 54
+
+local floatFrame = Instance.new("Frame")
+floatFrame.Name              = "FloatFrame"
+floatFrame.Size              = UDim2.fromOffset(btnSize, btnSize)
+floatFrame.Position          = UDim2.fromOffset(12, 120)
+floatFrame.BackgroundColor3  = Color3.fromRGB(20, 20, 20)
+floatFrame.BackgroundTransparency = 0.15
+floatFrame.BorderSizePixel   = 0
+floatFrame.Visible           = false   -- tersembunyi saat GUI terbuka
+floatFrame.ZIndex            = 10
+floatFrame.Parent            = floatGui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 14)
+corner.Parent       = floatFrame
+
+-- Stroke / border hijau
+local stroke = Instance.new("UIStroke")
+stroke.Color       = Color3.fromRGB(80, 200, 80)
+stroke.Thickness   = 2
+stroke.Transparency = 0.2
+stroke.Parent      = floatFrame
+
+-- Label "AH" sebagai ikon teks
+local label = Instance.new("TextLabel")
+label.Size                = UDim2.fromScale(1, 0.6)
+label.Position            = UDim2.fromScale(0, 0.08)
+label.BackgroundTransparency = 1
+label.Text                = "AH"
+label.TextColor3          = Color3.fromRGB(80, 220, 80)
+label.TextScaled          = true
+label.Font                = Enum.Font.GothamBold
+label.ZIndex              = 11
+label.Parent              = floatFrame
+
+local sublabel = Instance.new("TextLabel")
+sublabel.Size                = UDim2.fromScale(1, 0.35)
+sublabel.Position            = UDim2.fromScale(0, 0.65)
+sublabel.BackgroundTransparency = 1
+sublabel.Text                = "TAP"
+sublabel.TextColor3          = Color3.fromRGB(160, 160, 160)
+sublabel.TextScaled          = true
+sublabel.Font                = Enum.Font.Gotham
+sublabel.ZIndex              = 11
+sublabel.Parent              = floatFrame
+
+-- ── Deteksi minimize dari Fluent ──
+-- Fluent menyembunyikan main frame saat minimize
+-- Kita poll setiap 0.3 detik untuk cek visibility-nya
+local isMinimized = false
+
+task.spawn(function()
+    while true do
+        task.wait(0.3)
+        -- Cek apakah Fluent main window tersembunyi
+        local mainVisible = true
+        pcall(function()
+            -- Fluent menyimpan instance di Fluent.gui atau di PlayerGui
+            local pg = LocalPlayer:FindFirstChild("PlayerGui")
+            if not pg then return end
+            -- Cari ScreenGui milik Fluent (biasanya nama "Fluent" atau "Library")
+            for _, sg in pairs(pg:GetChildren()) do
+                if sg:IsA("ScreenGui") and sg.Name ~= "AxorzFloatButton" and sg.Name ~= "RobloxGui" then
+                    local main = sg:FindFirstChildWhichIsA("Frame", true)
+                    if main and not main.Visible then
+                        mainVisible = false
+                    end
+                end
+            end
+        end)
+
+        if not mainVisible and not isMinimized then
+            isMinimized = true
+            floatFrame.Visible = true
+        elseif mainVisible and isMinimized then
+            isMinimized = false
+            floatFrame.Visible = false
+        end
+    end
+end)
+
+-- ── Drag logic ──
+local dragging     = false
+local dragStartPos = Vector2.new()
+local frameStartPos = UDim2.fromOffset(12, 120)
+local dragThreshold = 6   -- pixel — di bawah ini dianggap tap bukan drag
+local totalDrag    = 0
+
+floatFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch
+    or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging      = true
+        totalDrag     = 0
+        dragStartPos  = Vector2.new(input.Position.X, input.Position.Y)
+        frameStartPos = floatFrame.Position
+    end
+end)
+
+floatFrame.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.Touch
+        or input.UserInputType == Enum.UserInputType.MouseMovement) then
+        local delta = Vector2.new(input.Position.X, input.Position.Y) - dragStartPos
+        totalDrag = totalDrag + delta.Magnitude
+        floatFrame.Position = UDim2.fromOffset(
+            frameStartPos.X.Offset + delta.X,
+            frameStartPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+floatFrame.InputEnded:Connect(function(input)
+    if not dragging then return end
+    if input.UserInputType == Enum.UserInputType.Touch
+    or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+        -- Kalau drag sangat kecil = tap → maximize
+        if totalDrag < dragThreshold then
+            -- Maximize: paksa Fluent show kembali
+            pcall(function()
+                local pg = LocalPlayer:FindFirstChild("PlayerGui")
+                if not pg then return end
+                for _, sg in pairs(pg:GetChildren()) do
+                    if sg:IsA("ScreenGui") and sg.Name ~= "AxorzFloatButton" and sg.Name ~= "RobloxGui" then
+                        for _, frame in pairs(sg:GetDescendants()) do
+                            if frame:IsA("Frame") then
+                                frame.Visible = true
+                            end
+                        end
+                    end
+                end
+            end)
+            -- Juga coba via Fluent API
+            pcall(function() Window:SetMinimized(false) end)
+            floatFrame.Visible = false
+            isMinimized        = false
+        end
+    end
+end)
+
 Fluent:Notify({
     Title   = "Axorz Hub v2.1",
     Content = "✅ Fix: polling egg aktif + anchor conflict resolved!\nAktifkan 4 toggle untuk Auto Farm All.",
