@@ -1697,11 +1697,32 @@ task.wait(1)
 local SeedNames = BuildSeedDropdown()
 Config.SelectedSeed = SeedNames[1]
 
+-- ── Responsive Size ──
+local ScreenGui   = Instance.new("ScreenGui")
+ScreenGui.Parent  = game:GetService("RunService"):IsStudio()
+    and game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+    or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+local screenSize  = workspace.CurrentCamera.ViewportSize
+local isPhone     = screenSize.X < 600 or screenSize.Y < 600
+
+local guiWidth, guiHeight, tabWidth
+if isPhone then
+    -- HP: pakai 88% lebar layar, max 420px, tinggi 72% layar
+    guiWidth  = math.min(math.floor(screenSize.X * 0.88), 420)
+    guiHeight = math.min(math.floor(screenSize.Y * 0.72), 520)
+    tabWidth  = math.floor(guiWidth * 0.28)
+else
+    -- PC / tablet: ukuran normal
+    guiWidth  = 580
+    guiHeight = 650
+    tabWidth  = 160
+end
+
 local Window = Fluent:CreateWindow({
     Title       = "Axorz Hub",
     SubTitle    = "Sawah Indo | v2.1",
-    TabWidth    = 160,
-    Size        = UDim2.fromOffset(580, 650),
+    TabWidth    = tabWidth,
+    Size        = UDim2.fromOffset(guiWidth, guiHeight),
     Theme       = "Emerald",
     MinimizeKey = Enum.KeyCode.RightControl,
 })
