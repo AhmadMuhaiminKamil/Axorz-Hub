@@ -1697,26 +1697,37 @@ task.wait(1)
 local SeedNames = BuildSeedDropdown()
 Config.SelectedSeed = SeedNames[1]
 
+
 -- ── Responsive Size ──
-local ScreenGui   = Instance.new("ScreenGui")
-ScreenGui.Parent  = game:GetService("RunService"):IsStudio()
-    and game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
-    or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
-local screenSize  = workspace.CurrentCamera.ViewportSize
-local isPhone     = screenSize.X < 600 or screenSize.Y < 600
+local screenSize = workspace.CurrentCamera.ViewportSize
+local sw, sh     = screenSize.X, screenSize.Y
 
 local guiWidth, guiHeight, tabWidth
-if isPhone then
-    -- HP: pakai 88% lebar layar, max 420px, tinggi 72% layar
-    guiWidth  = math.min(math.floor(screenSize.X * 0.88), 420)
-    guiHeight = math.min(math.floor(screenSize.Y * 0.72), 520)
-    tabWidth  = math.floor(guiWidth * 0.28)
+
+if sw < 600 or sh < 600 then
+    -- HP portrait kecil
+    guiWidth  = math.min(math.floor(sw * 0.92), 420)
+    guiHeight = math.min(math.floor(sh * 0.75), 520)
+    tabWidth  = math.floor(guiWidth * 0.27)
+elseif sw <= 960 or sh <= 960 then
+    -- Tablet / emulator medium
+    guiWidth  = math.min(math.floor(sw * 0.70), 540)
+    guiHeight = math.min(math.floor(sh * 0.78), 600)
+    tabWidth  = 140
+elseif sw >= 1280 then
+    -- Emulator landscape / PC resolusi tinggi (1280+)
+    guiWidth  = math.min(math.floor(sw * 0.38), 640)
+    guiHeight = math.min(math.floor(sh * 0.72), 680)
+    tabWidth  = 145
 else
-    -- PC / tablet: ukuran normal
+    -- PC normal
     guiWidth  = 580
     guiHeight = 650
     tabWidth  = 160
 end
+
+print(("[Axorz Hub] Screen: %dx%d → GUI: %dx%d TabWidth: %d"):format(
+    sw, sh, guiWidth, guiHeight, tabWidth))
 
 local Window = Fluent:CreateWindow({
     Title       = "Axorz Hub",
